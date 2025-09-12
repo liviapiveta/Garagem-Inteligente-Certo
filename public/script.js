@@ -1,4 +1,4 @@
-const backendUrl = 'https://b3-p1-a1.vercel.app';
+const backendUrl = 'https://garagem-inteligente-certo.vercel.app';
 let veiculoSelecionado = null;
 let previsaoCompleta = [];
 let detalhesTecnicosSelecionados = null;
@@ -486,5 +486,6 @@ function playSound(id) {
     const sound = document.getElementById(`som${id.charAt(0).toUpperCase() + id.slice(1)}`);
     if(sound) { sound.currentTime = 0; sound.play().catch(() => {}); }
 }
+
 
 document.addEventListener('DOMContentLoaded', carregarVeiculos);
