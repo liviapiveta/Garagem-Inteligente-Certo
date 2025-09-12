@@ -122,7 +122,8 @@ button:hover {
     padding: 0;
     margin: 0;
     max-height: 500px;
-    overflow-y: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 #listaVeiculos li {
@@ -510,3 +511,4 @@ button:hover {
     width: 97%;
 
 }
+
