@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garagem Inteligente 💖</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>Garagem Inteligente 💖</h1>
+        <p>Gerencie, interaja e cuide dos seus veículos.</p>
+    </header>
+
+    <main>
+        <details class="card-collapsible">
+            <summary>Adicionar Novo Veículo</summary>
+            <form id="formAdicionarVeiculo" onsubmit="adicionarVeiculo(event)">
+                <input type="text" id="placaInput" placeholder="Placa" required>
+                <input type="text" id="marcaInput" placeholder="Marca" required>
+                <input type="text" id="modeloInput" placeholder="Modelo" required>
+                <select id="tipoInput" required onchange="verificarTipoVeiculo()">
+                    <option value="" disabled selected>Selecione o Tipo</option>
+                    <option value="carro">Carro Comum</option>
+                    <option value="esportivo">Carro Esportivo</option>
+                    <option value="caminhao">Caminhão</option>
+                </select>
+                <div id="campoCapacidade" class="hidden">
+                    <input type="number" id="capacidadeInput" placeholder="Capacidade de Carga (kg)">
+                </div>
+                <input type="number" id="anoInput" placeholder="Ano" required>
+                <input type="text" id="corInput" placeholder="Cor">
+                <button type="submit">✨ Adicionar à Garagem</button>
+            </form>
+        </details>
+
+        <div class="garagem-grid">
+            <section class="card lista-card">
+                <h2>Minha Garagem</h2>
+                <ul id="listaVeiculos">
+                    <li>Carregando veículos...</li>
+                </ul>
+            </section>
+            <section id="areaVeiculoSelecionado" class="card interacao-card hidden">
+                <h2>Painel do Veículo</h2>
+                <div id="placeholder-selecao">
+                    <p>Selecione um veículo da lista para ver os detalhes e interagir.</p>
+                </div>
+                <div id="conteudo-veiculo" class="hidden">
+                    <div class="veiculo-display">
+                        <img id="imagemVeiculo" src="" alt="Imagem do Veículo">
+                        <div id="informacoesVeiculo"></div>
+                    </div>
+                    <div class="status-bar">
+                        <span>Status: <span id="statusVeiculo" class="status-desligado">Desligado</span></span>
+                        <div class="progress-bar">
+                            <div class="progress" id="velocidadeProgress">
+                                <span id="velocidadeTexto">0 km/h</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="button-container">
+                        <button onclick="interagir('ligar')">Ligar</button>
+                        <button onclick="interagir('desligar')">Desligar</button>
+                        <button onclick="interagir('acelerar')">Acelerar</button>
+                        <button onclick="interagir('frear')">Frear</button>
+                        <button onclick="interagir('buzinar')">Buzinar</button>
+                        <button id="btnTurboOn" onclick="interagir('ativarTurbo')" class="hidden">Ativar Turbo</button>
+                        <button id="btnTurboOff" onclick="interagir('desativarTurbo')" class="hidden">Desativar
+                            Turbo</button>
+                        <button id="btnCarregar" onclick="interagir('carregar')" class="hidden">Carregar</button>
+                        <button id="btnDescarregar" onclick="interagir('descarregar')"
+                            class="hidden">Descarregar</button>
+                    </div>
+                    <div class="manutencao-container">
+                        <h3>Histórico de Manutenção</h3>
+                        <div id="historicoManutencao"></div>
+                        <button id="btnAdicionarManutencao" class="btn-pequeno">Adicionar Registro</button>
+                    </div>
+                    <div class="detalhes-tecnicos-container">
+                        <button id="btnVerDetalhesExtras" onclick="mostrarDetalhesExtras()">Ver Detalhes Técnicos (API)</button>
+                        <button id="btnEditarDetalhes" class="btn-pequeno hidden">Editar Detalhes</button>
+                        <div id="areaDetalhesExtras" class="hidden"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="card planejador-viagem">
+            <h2>Planejador de Viagem</h2>
+            <div class="form-clima">
+                <input type="text" id="cidade-input" placeholder="Digite o nome da cidade de destino">
+                <button id="buscar-clima-btn">Ver Previsão</button>
+            </div>
+            <div id="previsao-controles" class="hidden">
+                <button class="filtro-dia active" data-dias="1">1 Dia</button>
+                <button class="filtro-dia" data-dias="3">3 Dias</button>
+                <button class="filtro-dia" data-dias="5">5 Dias</button>
+            </div>
+            <div id="previsao-resultado">
+                <p>A previsão do tempo para sua viagem aparecerá aqui.</p>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal-detalhes" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 id="modal-detalhes-titulo">Editar Detalhes Técnicos</h2>
+            <form id="form-detalhes">
+                <input type="hidden" id="detalhes-id">
+                <label>Próxima Revisão (Quilometragem)</label>
+                <input type="text" id="detalhes-revisao" placeholder="Ex: A cada 6.000 km" required>
+
+                <label>Pontos a Verificar (um por linha)</label>
+                <textarea id="detalhes-pontos" rows="4" placeholder="Nível do óleo&#10;Filtro de ar"></textarea>
+
+                <label>Informação de Recall</label>
+                <textarea id="detalhes-recall" rows="3" placeholder="Informações sobre recalls ativos"></textarea>
+
+                <button type="submit">Salvar Detalhes</button>
+            </form>
+        </div>
+    </div>
+
+
+    <div id="modal-edicao" class="modal">
+        <div class="modal-content"><span class="close-button">&times;</span>
+            <h2>Editar Veículo</h2>
+            <form id="form-edicao"><input type="hidden" id="edit-id"><input type="text" id="edit-placa"
+                    placeholder="Placa" required><input type="text" id="edit-marca" placeholder="Marca" required><input
+                    type="text" id="edit-modelo" placeholder="Modelo" required><input type="number" id="edit-ano"
+                    placeholder="Ano" required><input type="text" id="edit-cor" placeholder="Cor"><button
+                    type="submit">Salvar Alterações</button></form>
+        </div>
+    </div>
+
+    <div id="modal-manutencao" class="modal">
+        <div class="modal-content"><span class="close-button">&times;</span>
+            <h2 id="modal-manutencao-titulo">Adicionar Registro</h2>
+            <form id="form-manutencao"><input type="hidden" id="manutencao-id"><input type="date" id="manutencao-data"
+                    required><input type="text" id="manutencao-servico"
+                    placeholder="Tipo de Serviço (Ex: Troca de óleo)" required><input type="number"
+                    id="manutencao-custo" placeholder="Custo (R$)" step="0.01"><textarea id="manutencao-descricao"
+                    placeholder="Descrição ou notas adicionais"></textarea><button type="submit">Salvar
+                    Registro</button></form>
+        </div>
+    </div>
+
+    <audio id="somBuzina" src="sounds/buzina.mp3" preload="auto"></audio>
+    <audio id="somAcelerar" src="sounds/acelerar.mp3" preload="auto"></audio>
+    <audio id="somFrear" src="sounds/frear.mp3" preload="auto"></audio>
+    <audio id="somLigar" src="sounds/ligar.mp3" preload="auto"></audio>
+    <audio id="somDesligar" src="sounds/desligar.mp3" preload="auto"></audio>
+
+    <div id="notification-container"></div>
+    <script src="script.js"></script>
+</body>
+
+</html>

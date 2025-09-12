@@ -1,0 +1,20 @@
+{
+  "name": "garagem-inteligente-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy para a atividade B2.P1.A5 da Garagem Inteligente",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Seu Nome Aqui",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.1.0",
+    "mongoose": "^8.16.2"
+  }
+}
