@@ -15,97 +15,127 @@
     <header>
         <h1>Garagem Inteligente 💖</h1>
         <p>Gerencie, interaja e cuide dos seus veículos.</p>
+        <nav id="auth-nav">
+            <button id="showLoginBtn" class="auth-btn">Login</button>
+            <button id="showRegisterBtn" class="auth-btn">Registrar</button>
+            <button id="logoutBtn" class="auth-btn hidden">Sair</button>
+        </nav>
     </header>
 
     <main>
-        <details class="card-collapsible">
-            <summary>Adicionar Novo Veículo</summary>
-            <form id="formAdicionarVeiculo" onsubmit="adicionarVeiculo(event)">
-                <input type="text" id="placaInput" placeholder="Placa" required>
-                <input type="text" id="marcaInput" placeholder="Marca" required>
-                <input type="text" id="modeloInput" placeholder="Modelo" required>
-                <select id="tipoInput" required onchange="verificarTipoVeiculo()">
-                    <option value="" disabled selected>Selecione o Tipo</option>
-                    <option value="carro">Carro Comum</option>
-                    <option value="esportivo">Carro Esportivo</option>
-                    <option value="caminhao">Caminhão</option>
-                </select>
-                <div id="campoCapacidade" class="hidden">
-                    <input type="number" id="capacidadeInput" placeholder="Capacidade de Carga (kg)">
-                </div>
-                <input type="number" id="anoInput" placeholder="Ano" required>
-                <input type="text" id="corInput" placeholder="Cor">
-                <button type="submit">✨ Adicionar à Garagem</button>
-            </form>
-        </details>
+        <!-- Seção de Autenticação (Visível inicialmente, oculta após login) -->
+        <section id="auth-section" class="card">
+            <h2 id="auth-title">Login</h2>
 
-        <div class="garagem-grid">
-            <section class="card lista-card">
-                <h2>Minha Garagem</h2>
-                <ul id="listaVeiculos">
-                    <li>Carregando veículos...</li>
-                </ul>
-            </section>
-            <section id="areaVeiculoSelecionado" class="card interacao-card hidden">
-                <h2>Painel do Veículo</h2>
-                <div id="placeholder-selecao">
-                    <p>Selecione um veículo da lista para ver os detalhes e interagir.</p>
-                </div>
-                <div id="conteudo-veiculo" class="hidden">
-                    <div class="veiculo-display">
-                        <img id="imagemVeiculo" src="" alt="Imagem do Veículo">
-                        <div id="informacoesVeiculo"></div>
+            <form id="loginForm" class="auth-form">
+                <input type="email" id="loginEmail" placeholder="E-mail" required>
+                <input type="password" id="loginPassword" placeholder="Senha" required>
+                <button type="submit">Entrar</button>
+                <p class="auth-switch">Não tem uma conta? <a href="#" id="switchToRegister">Registre-se</a></p>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
+                <input type="email" id="registerEmail" placeholder="E-mail" required>
+                <input type="password" id="registerPassword" placeholder="Senha" required>
+                <button type="submit">Registrar</button>
+                <p class="auth-switch">Já tem uma conta? <a href="#" id="switchToLogin">Login</a></p>
+            </form>
+        </section>
+
+
+        <!-- Seções da Garagem (Ocultas inicialmente, visíveis após login) -->
+        <div id="app-sections" class="hidden">
+            <details class="card-collapsible">
+                <summary>Adicionar Novo Veículo</summary>
+                <form id="formAdicionarVeiculo" onsubmit="adicionarVeiculo(event)">
+                    <input type="text" id="placaInput" placeholder="Placa" required>
+                    <input type="text" id="marcaInput" placeholder="Marca" required>
+                    <input type="text" id="modeloInput" placeholder="Modelo" required>
+                    <select id="tipoInput" required onchange="verificarTipoVeiculo()">
+                        <option value="" disabled selected>Selecione o Tipo</option>
+                        <option value="carro">Carro Comum</option>
+                        <option value="esportivo">Carro Esportivo</option>
+                        <option value="caminhao">Caminhão</option>
+                    </select>
+                    <div id="campoCapacidade" class="hidden">
+                        <input type="number" id="capacidadeInput" placeholder="Capacidade de Carga (kg)">
                     </div>
-                    <div class="status-bar">
-                        <span>Status: <span id="statusVeiculo" class="status-desligado">Desligado</span></span>
-                        <div class="progress-bar">
-                            <div class="progress" id="velocidadeProgress">
-                                <span id="velocidadeTexto">0 km/h</span>
+                    <input type="number" id="anoInput" placeholder="Ano" required>
+                    <input type="text" id="corInput" placeholder="Cor">
+                    <button type="submit">✨ Adicionar à Garagem</button>
+                </form>
+            </details>
+
+            <div class="garagem-grid">
+                <section class="card lista-card">
+                    <h2>Minha Garagem</h2>
+                    <ul id="listaVeiculos">
+                        <li>Carregando veículos...</li>
+                    </ul>
+                </section>
+                <section id="areaVeiculoSelecionado" class="card interacao-card hidden">
+                    <h2>Painel do Veículo</h2>
+                    <div id="placeholder-selecao">
+                        <p>Selecione um veículo da lista para ver os detalhes e interagir.</p>
+                    </div>
+                    <div id="conteudo-veiculo" class="hidden">
+                        <div class="veiculo-display">
+                            <img id="imagemVeiculo" src="" alt="Imagem do Veículo">
+                            <div id="informacoesVeiculo"></div>
+                        </div>
+                        <div class="status-bar">
+                            <span>Status: <span id="statusVeiculo" class="status-desligado">Desligado</span></span>
+                            <div class="progress-bar">
+                                <div class="progress" id="velocidadeProgress">
+                                    <span id="velocidadeTexto">0 km/h</span>
+                                </div>
                             </div>
                         </div>
+                        <div class="button-container">
+                            <button onclick="interagir('ligar')">Ligar</button>
+                            <button onclick="interagir('desligar')">Desligar</button>
+                            <button onclick="interagir('acelerar')">Acelerar</button>
+                            <button onclick="interagir('frear')">Frear</button>
+                            <button onclick="interagir('buzinar')">Buzinar</button>
+                            <button id="btnTurboOn" onclick="interagir('ativarTurbo')" class="hidden">Ativar
+                                Turbo</button>
+                            <button id="btnTurboOff" onclick="interagir('desativarTurbo')" class="hidden">Desativar
+                                Turbo</button>
+                            <button id="btnCarregar" onclick="interagir('carregar')" class="hidden">Carregar</button>
+                            <button id="btnDescarregar" onclick="interagir('descarregar')"
+                                class="hidden">Descarregar</button>
+                        </div>
+                        <div class="manutencao-container">
+                            <h3>Histórico de Manutenção</h3>
+                            <div id="historicoManutencao"></div>
+                            <button id="btnAdicionarManutencao" class="btn-pequeno">Adicionar Registro</button>
+                        </div>
+                        <div class="detalhes-tecnicos-container">
+                            <button id="btnVerDetalhesExtras" onclick="mostrarDetalhesExtras()">Ver Detalhes Técnicos
+                                (API)</button>
+                            <button id="btnEditarDetalhes" class="btn-pequeno hidden">Editar Detalhes</button>
+                            <div id="areaDetalhesExtras" class="hidden"></div>
+                        </div>
                     </div>
-                    <div class="button-container">
-                        <button onclick="interagir('ligar')">Ligar</button>
-                        <button onclick="interagir('desligar')">Desligar</button>
-                        <button onclick="interagir('acelerar')">Acelerar</button>
-                        <button onclick="interagir('frear')">Frear</button>
-                        <button onclick="interagir('buzinar')">Buzinar</button>
-                        <button id="btnTurboOn" onclick="interagir('ativarTurbo')" class="hidden">Ativar Turbo</button>
-                        <button id="btnTurboOff" onclick="interagir('desativarTurbo')" class="hidden">Desativar
-                            Turbo</button>
-                        <button id="btnCarregar" onclick="interagir('carregar')" class="hidden">Carregar</button>
-                        <button id="btnDescarregar" onclick="interagir('descarregar')"
-                            class="hidden">Descarregar</button>
-                    </div>
-                    <div class="manutencao-container">
-                        <h3>Histórico de Manutenção</h3>
-                        <div id="historicoManutencao"></div>
-                        <button id="btnAdicionarManutencao" class="btn-pequeno">Adicionar Registro</button>
-                    </div>
-                    <div class="detalhes-tecnicos-container">
-                        <button id="btnVerDetalhesExtras" onclick="mostrarDetalhesExtras()">Ver Detalhes Técnicos (API)</button>
-                        <button id="btnEditarDetalhes" class="btn-pequeno hidden">Editar Detalhes</button>
-                        <div id="areaDetalhesExtras" class="hidden"></div>
-                    </div>
+                </section>
+            </div>
+
+            <section class="card planejador-viagem">
+                <h2>Planejador de Viagem</h2>
+                <div class="form-clima">
+                    <input type="text" id="cidade-input" placeholder="Digite o nome da cidade de destino">
+                    <button id="buscar-clima-btn">Ver Previsão</button>
+                </div>
+                <div id="previsao-controles" class="hidden">
+                    <button class="filtro-dia active" data-dias="1">1 Dia</button>
+                    <button class="filtro-dia" data-dias="3">3 Dias</button>
+                    <button class="filtro-dia" data-dias="5">5 Dias</button>
+                </div>
+                <div id="previsao-resultado">
+                    <p>A previsão do tempo para sua viagem aparecerá aqui.</p>
                 </div>
             </section>
         </div>
-
-        <section class="card planejador-viagem">
-            <h2>Planejador de Viagem</h2>
-            <div class="form-clima">
-                <input type="text" id="cidade-input" placeholder="Digite o nome da cidade de destino">
-                <button id="buscar-clima-btn">Ver Previsão</button>
-            </div>
-            <div id="previsao-controles" class="hidden">
-                <button class="filtro-dia active" data-dias="1">1 Dia</button>
-                <button class="filtro-dia" data-dias="3">3 Dias</button>
-                <button class="filtro-dia" data-dias="5">5 Dias</button>
-            </div>
-            <div id="previsao-resultado">
-                <p>A previsão do tempo para sua viagem aparecerá aqui.</p>
-            </div>
-        </section>
     </main>
 
     <div id="modal-detalhes" class="modal">
@@ -160,6 +190,7 @@
 
     <div id="notification-container"></div>
     <script src="script.js"></script>
+
 </body>
 
 </html>

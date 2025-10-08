@@ -11,6 +11,8 @@ import DetalhesTecnicos from './models/detalhesTecnicos.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import authRoutes from './routes/auth.js'
+
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
@@ -111,6 +113,18 @@ app.put('/api/detalhes-tecnicos/:id', apiMutationLimiter, async (req, res) => {
         res.status(400).json({ message: "Erro ao atualizar detalhes técnicos." });
     }
 });
+
+// server.js
+
+
+
+
+// Use as rotas de autenticação sob o prefixo /api/auth
+app.use('/api/auth', authRoutes);
+
+// Use as suas outras rotas
+// app.use('/api/veiculos', veiculoRoutes);
+
 
 app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "index.html")); });
 app.listen(port, () => { console.log(`✅ Servidor rodando em http://localhost:${port}`); });

@@ -46,6 +46,60 @@ header h1 {
     margin: 0;
 }
 
+/* Estilos de Autenticação */
+#auth-nav {
+    margin-top: 20px;
+}
+
+.auth-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    margin: 0 5px;
+    padding: 8px 15px;
+    font-weight: 500;
+}
+
+.auth-btn:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+}
+
+#auth-section {
+    max-width: 400px;
+    margin: 50px auto;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.auth-form input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: var(--font-family);
+}
+
+.auth-switch {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.auth-switch a {
+    color: var(--pink-primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
 main {
     max-width: 1200px;
     margin: auto;
@@ -492,8 +546,10 @@ button:hover {
         opacity: 0;
     }
 }
+
 #btnEditarDetalhes {
-    background-color: #0d6efd; /* Azul para diferenciar */
+    background-color: #0d6efd;
+    /* Azul para diferenciar */
     margin-left: 10px;
 }
 
@@ -507,8 +563,8 @@ button:hover {
 #form-detalhes textarea {
     resize: vertical;
 }
-#capacidadeInput{
+
+#capacidadeInput {
     width: 97%;
 
 }
-

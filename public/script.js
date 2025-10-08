@@ -1,7 +1,170 @@
-const backendUrl = 'https://garagem-inteligente-certo.vercel.app';
+// URL base do seu backend
+const backendUrl = 'http://localhost:3000'; // Mantenha a URL do seu backend aqui
+
+// --- Variáveis de Estado da Aplicação ---
 let veiculoSelecionado = null;
 let previsaoCompleta = [];
 let detalhesTecnicosSelecionados = null;
+
+
+// --- ELEMENTOS DE AUTENTICAÇÃO E UI PRINCIPAL ---
+const authSection = document.getElementById('auth-section');
+const appSections = document.getElementById('app-sections');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+const registerEmail = document.getElementById('registerEmail');
+const registerPassword = document.getElementById('registerPassword');
+const authTitle = document.getElementById('auth-title');
+const switchToRegister = document.getElementById('switchToRegister');
+const switchToLogin = document.getElementById('switchToLogin');
+const logoutBtn = document.getElementById('logoutBtn');
+const showLoginBtn = document.getElementById('showLoginBtn');
+const showRegisterBtn = document.getElementById('showRegisterBtn');
+const listaVeiculos = document.getElementById('listaVeiculos');
+const areaVeiculoSelecionado = document.getElementById('areaVeiculoSelecionado');
+
+
+// --- FUNÇÕES AUXILIARES DE AUTENTICAÇÃO ---
+
+/**
+ * Pega o token JWT do localStorage.
+ * @returns {string|null} O token ou null se não existir.
+ */
+function getToken() {
+    return localStorage.getItem('token');
+}
+
+/**
+ * Verifica se o usuário está autenticado.
+ * @returns {boolean} True se houver um token, false caso contrário.
+ */
+function isAuthenticated() {
+    return !!getToken();
+}
+
+/**
+ * Cria o objeto de cabeçalhos para requisições autenticadas.
+ * @returns {HeadersInit} Objeto de cabeçalhos com Content-Type e Authorization (se houver token).
+ */
+function getAuthHeaders() {
+    const token = getToken();
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
+
+// --- LÓGICA DE GERENCIAMENTO DE UI (AUTENTICAÇÃO) ---
+
+/**
+ * Atualiza a interface do usuário com base no estado de autenticação.
+ */
+function updateAuthUI() {
+    if (isAuthenticated()) {
+        // Usuário LOGADO
+        authSection.classList.add('hidden');
+        appSections.classList.remove('hidden');
+        logoutBtn.classList.remove('hidden');
+        showLoginBtn.classList.add('hidden');
+        showRegisterBtn.classList.add('hidden');
+        carregarVeiculos(); // Carrega os veículos do usuário logado
+    } else {
+        // Usuário NÃO LOGADO
+        authSection.classList.remove('hidden');
+        appSections.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+        showLoginBtn.classList.remove('hidden');
+        showRegisterBtn.classList.remove('hidden');
+        
+        // Redefine a UI para o estado de login inicial
+        authTitle.textContent = 'Login';
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        listaVeiculos.innerHTML = '<li>Faça login para ver seus veículos.</li>';
+        areaVeiculoSelecionado.classList.add('hidden');
+    }
+}
+
+
+// --- FUNÇÕES DE INTERAÇÃO COM API DE AUTENTICAÇÃO ---
+
+/**
+ * Lida com o evento de submissão do formulário de registro.
+ * @param {Event} event - O evento de submissão do formulário.
+ */
+async function handleRegister(event) {
+    event.preventDefault();
+    const email = registerEmail.value;
+    const password = registerPassword.value;
+
+    try {
+        const response = await fetch(`${backendUrl}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro ao registrar.');
+        }
+
+        showNotification('Usuário registrado com sucesso! Faça o login.', 'success');
+        registerForm.reset();
+        switchToLogin.click(); // Simula o clique para voltar para a tela de login
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+/**
+ * Lida com o evento de submissão do formulário de login.
+ * @param {Event} event - O evento de submissão do formulário.
+ */
+async function handleLogin(event) {
+    event.preventDefault();
+    const email = loginEmail.value;
+    const password = loginPassword.value;
+
+    try {
+        const response = await fetch(`${backendUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'E-mail ou senha inválidos.');
+        }
+
+        localStorage.setItem('token', data.token);
+        showNotification('Login realizado com sucesso!', 'success');
+        loginForm.reset();
+        updateAuthUI();
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+/**
+ * Lida com o evento de clique no botão de logout.
+ */
+function handleLogout() {
+    localStorage.removeItem('token');
+    showNotification('Você saiu da sua conta.', 'info');
+    veiculoSelecionado = null; // Limpa o veículo selecionado
+    updateAuthUI();
+}
+
+
+// --- FUNÇÕES EXISTENTES DA APLICAÇÃO (MODIFICADAS PARA AUTENTICAÇÃO) ---
 
 function showNotification(message, type = 'info') {
     const container = document.getElementById('notification-container');
@@ -35,10 +198,21 @@ async function adicionarVeiculo(event) {
     try {
         const response = await fetch(`${backendUrl}/api/veiculos`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(), // <-- MODIFICADO
             body: JSON.stringify(veiculo),
         });
-        if (!response.ok) throw new Error((await response.json()).message);
+
+        if (response.status === 401) {
+            showNotification('Sessão expirada. Faça login novamente.', 'error');
+            handleLogout();
+            return;
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Não foi possível adicionar o veículo.');
+        }
+
         showNotification('Veículo adicionado com sucesso!', 'success');
         document.getElementById('formAdicionarVeiculo').reset();
         document.querySelector('details.card-collapsible').removeAttribute('open');
@@ -50,11 +224,22 @@ async function adicionarVeiculo(event) {
 }
 
 async function carregarVeiculos() {
+    if (!isAuthenticated()) return; // Não carrega se não estiver logado
+
     try {
-        const response = await fetch(`${backendUrl}/api/veiculos`);
-        if (!response.ok) throw new Error('Erro ao buscar veículos');
+        const response = await fetch(`${backendUrl}/api/veiculos`, {
+            headers: getAuthHeaders() // <-- MODIFICADO
+        });
+
+        if (response.status === 401) {
+            showNotification('Sessão expirada. Faça login novamente.', 'error');
+            handleLogout();
+            return;
+        }
+
+        if (!response.ok) throw new Error('Falha ao carregar veículos.');
+        
         const veiculos = await response.json();
-        const listaVeiculos = document.getElementById('listaVeiculos');
         listaVeiculos.innerHTML = '';
         if (veiculos.length === 0) {
             listaVeiculos.innerHTML = '<li>Nenhum veículo cadastrado na garagem.</li>';
@@ -77,13 +262,16 @@ async function carregarVeiculos() {
         });
     } catch (error) {
         showNotification('Não foi possível carregar os veículos.', 'error');
+        listaVeiculos.innerHTML = '<li>Erro ao carregar veículos.</li>';
     }
 }
 
 async function selecionarVeiculo(id) {
     try {
         if (!id) return;
-        const response = await fetch(`${backendUrl}/api/veiculos/${id}`);
+        const response = await fetch(`${backendUrl}/api/veiculos/${id}`, {
+            headers: getAuthHeaders() // <-- MODIFICADO
+        });
         if (!response.ok) throw new Error('Não foi possível carregar os dados do veículo.');
         veiculoSelecionado = await response.json();
         document.querySelectorAll('#listaVeiculos li').forEach(item => {
@@ -101,6 +289,64 @@ async function selecionarVeiculo(id) {
     }
 }
 
+async function interagir(acao) {
+    if (!veiculoSelecionado) return showNotification("Nenhum veículo selecionado!", "error");
+
+    if (acao === 'carregar' || acao === 'descarregar') {
+        const quantidadeStr = prompt(`Quanto deseja ${acao}? (Atual: ${veiculoSelecionado.cargaAtual} kg)`);
+        if (!quantidadeStr) return;
+        const quantidade = parseFloat(quantidadeStr);
+        if (isNaN(quantidade) || quantidade <= 0) return showNotification("Valor inválido.", "error");
+        try {
+            const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/carga`, { 
+                method: 'POST', 
+                headers: getAuthHeaders(), // <-- MODIFICADO
+                body: JSON.stringify({ acao, quantidade }) 
+            });
+            const resultado = await response.json();
+            if (!response.ok) throw new Error(resultado.message);
+            veiculoSelecionado = resultado;
+            exibirInformacoesVeiculoSelecionado();
+            showNotification(`Operação de ${acao} realizada com sucesso!`, 'success');
+        } catch (error) {
+            showNotification(`Erro: ${error.message}`, 'error');
+        }
+        return;
+    }
+
+    let estadoOtimista = { ...veiculoSelecionado };
+    let deveAtualizarServidor = true;
+
+    switch (acao) {
+        case "acelerar": if (!estadoOtimista.ligado) { deveAtualizarServidor = false; break; } estadoOtimista.velocidade += estadoOtimista.turboAtivado ? 25 : 10; playSound("acelerar"); break;
+        case "frear": estadoOtimista.velocidade = Math.max(0, estadoOtimista.velocidade - 10); playSound("frear"); break;
+        case "ligar": if (estadoOtimista.ligado) { deveAtualizarServidor = false; } else { estadoOtimista.ligado = true; } playSound("ligar"); break;
+        case "desligar": if (!estadoOtimista.ligado || estadoOtimista.velocidade > 0) { deveAtualizarServidor = false; } else { estadoOtimista.ligado = false; estadoOtimista.turboAtivado = false; } playSound("desligar"); break;
+        case "ativarTurbo": if (estadoOtimista.turboAtivado || !estadoOtimista.ligado) { deveAtualizarServidor = false; } else { estadoOtimista.turboAtivado = true; } break;
+        case "desativarTurbo": if (!estadoOtimista.turboAtivado) { deveAtualizarServidor = false; } else { estadoOtimista.turboAtivado = false; } break;
+        case "buzinar": playSound("buzinar"); deveAtualizarServidor = false; break;
+        default: deveAtualizarServidor = false; break;
+    }
+    
+    exibirInformacoesVeiculoSelecionadoComEstado(estadoOtimista);
+
+    if (deveAtualizarServidor) {
+        try {
+            const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/estado`, { 
+                method: 'PUT', 
+                headers: getAuthHeaders(), // <-- MODIFICADO
+                body: JSON.stringify(estadoOtimista) 
+            });
+            if (!response.ok) throw new Error((await response.json()).message);
+            veiculoSelecionado = await response.json();
+        } catch (error) {
+            showNotification(`Erro de sincronização: ${error.message}`, 'error');
+            exibirInformacoesVeiculoSelecionado();
+        }
+    }
+}
+
+// ... (O restante das funções como `exibirInformacoesVeiculoSelecionado`, `atualizarStatusVisual`, etc., não precisam de modificações diretas para autenticação)
 function exibirInformacoesVeiculoSelecionado() {
     if (!veiculoSelecionado) return;
     const { informacoesVeiculoDiv, imagemVeiculo, btnTurboOn, btnTurboOff, btnCarregar, btnDescarregar } = {
@@ -142,55 +388,6 @@ function atualizarStatusVisual(veiculo) {
     statusVeiculoSpan.textContent = veiculo.ligado ? "Ligado" : "Desligado";
 }
 
-async function interagir(acao) {
-    if (!veiculoSelecionado) return showNotification("Nenhum veículo selecionado!", "error");
-
-    if (acao === 'carregar' || acao === 'descarregar') {
-        const quantidadeStr = prompt(`Quanto deseja ${acao}? (Atual: ${veiculoSelecionado.cargaAtual} kg)`);
-        if (!quantidadeStr) return;
-        const quantidade = parseFloat(quantidadeStr);
-        if (isNaN(quantidade) || quantidade <= 0) return showNotification("Valor inválido.", "error");
-        try {
-            const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/carga`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acao, quantidade }) });
-            const resultado = await response.json();
-            if (!response.ok) throw new Error(resultado.message);
-            veiculoSelecionado = resultado;
-            exibirInformacoesVeiculoSelecionado();
-            showNotification(`Operação de ${acao} realizada com sucesso!`, 'success');
-        } catch (error) {
-            showNotification(`Erro: ${error.message}`, 'error');
-        }
-        return;
-    }
-
-    let estadoOtimista = { ...veiculoSelecionado };
-    let deveAtualizarServidor = true;
-
-    switch (acao) {
-        case "acelerar": if (!estadoOtimista.ligado) { deveAtualizarServidor = false; break; } estadoOtimista.velocidade += estadoOtimista.turboAtivado ? 25 : 10; playSound("acelerar"); break;
-        case "frear": estadoOtimista.velocidade = Math.max(0, estadoOtimista.velocidade - 10); playSound("frear"); break;
-        case "ligar": if (estadoOtimista.ligado) { deveAtualizarServidor = false; } else { estadoOtimista.ligado = true; } playSound("ligar"); break;
-        case "desligar": if (!estadoOtimista.ligado || estadoOtimista.velocidade > 0) { deveAtualizarServidor = false; } else { estadoOtimista.ligado = false; estadoOtimista.turboAtivado = false; } playSound("desligar"); break;
-        case "ativarTurbo": if (estadoOtimista.turboAtivado || !estadoOtimista.ligado) { deveAtualizarServidor = false; } else { estadoOtimista.turboAtivado = true; } break;
-        case "desativarTurbo": if (!estadoOtimista.turboAtivado) { deveAtualizarServidor = false; } else { estadoOtimista.turboAtivado = false; } break;
-        case "buzinar": playSound("buzinar"); deveAtualizarServidor = false; break;
-        default: deveAtualizarServidor = false; break;
-    }
-    
-    exibirInformacoesVeiculoSelecionadoComEstado(estadoOtimista);
-
-    if (deveAtualizarServidor) {
-        try {
-            const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/estado`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(estadoOtimista) });
-            if (!response.ok) throw new Error((await response.json()).message);
-            veiculoSelecionado = await response.json();
-        } catch (error) {
-            showNotification(`Erro de sincronização: ${error.message}`, 'error');
-            exibirInformacoesVeiculoSelecionado();
-        }
-    }
-}
-
 function exibirInformacoesVeiculoSelecionadoComEstado(estado) {
     if (!estado) return;
     const informacoesVeiculoDiv = document.getElementById("informacoesVeiculo");
@@ -205,13 +402,18 @@ function exibirInformacoesVeiculoSelecionadoComEstado(estado) {
     atualizarStatusVisual(estado);
 }
 
+// ... Continuação do resto do seu código ...
+
+// As funções de Clima, Manutenção e Detalhes Extras precisam usar getAuthHeaders() se os endpoints estiverem protegidos.
+// Vou assumir que estão para garantir a segurança.
+
 document.getElementById('buscar-clima-btn').addEventListener('click', async () => {
     const cidade = document.getElementById('cidade-input').value.trim();
     if (!cidade) return showNotification('Por favor, digite uma cidade.', 'error');
     const resultadoDiv = document.getElementById('previsao-resultado');
     resultadoDiv.innerHTML = '<p>Buscando previsão...</p>';
     try {
-        const response = await fetch(`${backendUrl}/api/previsao/${cidade}`);
+        const response = await fetch(`${backendUrl}/api/previsao/${cidade}`, { headers: getAuthHeaders() }); // <-- MODIFICADO
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         previsaoCompleta = processarDadosPrevisao(data);
@@ -222,6 +424,7 @@ document.getElementById('buscar-clima-btn').addEventListener('click', async () =
     }
 });
 
+// ... as funções de renderização de clima não mudam ...
 document.querySelectorAll('.filtro-dia').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.filtro-dia').forEach(b => b.classList.remove('active'));
@@ -229,7 +432,6 @@ document.querySelectorAll('.filtro-dia').forEach(btn => {
         renderizarPrevisao(previsaoCompleta.slice(0, parseInt(btn.dataset.dias)));
     });
 });
-
 function processarDadosPrevisao(data) {
     const porDia = {};
     data.list.forEach(item => {
@@ -246,7 +448,6 @@ function processarDadosPrevisao(data) {
         descricao: porDia[dia].descs[Math.floor(porDia[dia].descs.length / 2)],
     }));
 }
-
 function renderizarPrevisao(previsao) {
     const resultadoDiv = document.getElementById('previsao-resultado');
     resultadoDiv.innerHTML = '';
@@ -257,11 +458,9 @@ function renderizarPrevisao(previsao) {
         resultadoDiv.appendChild(card);
     });
 }
-
 const modalManutencao = document.getElementById('modal-manutencao');
 const formManutencao = document.getElementById('form-manutencao');
 document.getElementById('btnAdicionarManutencao').addEventListener('click', () => abrirModalManutencao('add'));
-
 function renderizarHistoricoManutencao() {
     const container = document.getElementById('historicoManutencao');
     container.innerHTML = '';
@@ -277,7 +476,6 @@ function renderizarHistoricoManutencao() {
     });
     container.appendChild(ul);
 }
-
 function abrirModalManutencao(modo, id = null) {
     formManutencao.reset();
     document.getElementById('modal-manutencao-titulo').textContent = modo === 'add' ? 'Adicionar Manutenção' : 'Editar Manutenção';
@@ -293,7 +491,6 @@ function abrirModalManutencao(modo, id = null) {
     }
     modalManutencao.classList.add('active');
 }
-
 modalManutencao.querySelector('.close-button').onclick = () => modalManutencao.classList.remove('active');
 
 formManutencao.addEventListener('submit', async (event) => {
@@ -308,7 +505,7 @@ formManutencao.addEventListener('submit', async (event) => {
     const url = id ? `${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes/${id}` : `${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes`;
     const method = id ? 'PUT' : 'POST';
     try {
-        const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(registro) });
+        const response = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(registro) }); // <-- MODIFICADO
         const veiculoAtualizado = await response.json();
         if (!response.ok) throw new Error(veiculoAtualizado.message);
         veiculoSelecionado = veiculoAtualizado;
@@ -323,7 +520,10 @@ formManutencao.addEventListener('submit', async (event) => {
 async function deletarManutencao(manutencaoId) {
     if (!confirm('Tem certeza?')) return;
     try {
-        const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes/${manutencaoId}`, { method: 'DELETE' });
+        const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes/${manutencaoId}`, { 
+            method: 'DELETE',
+            headers: getAuthHeaders() // <-- MODIFICADO
+        });
         const veiculoAtualizado = await response.json();
         if (!response.ok) throw new Error(veiculoAtualizado.message);
         veiculoSelecionado = veiculoAtualizado;
@@ -334,92 +534,7 @@ async function deletarManutencao(manutencaoId) {
     }
 }
 
-async function mostrarDetalhesExtras() {
-    if (!veiculoSelecionado) return;
-    const detalhesDiv = document.getElementById('areaDetalhesExtras');
-    detalhesDiv.innerHTML = '<p>Buscando detalhes do modelo...</p>';
-    detalhesDiv.classList.remove('hidden');
-
-    try {
-        const response = await fetch(`${backendUrl}/api/detalhes-tecnicos/find`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ marca: veiculoSelecionado.marca, modelo: veiculoSelecionado.modelo })
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
-        detalhesTecnicosSelecionados = data;
-        renderizarDetalhesTecnicos(data);
-        document.getElementById('btnEditarDetalhes').classList.remove('hidden');
-    } catch (e) {
-        detalhesDiv.innerHTML = `<p style="color:red">Erro ao buscar detalhes.</p>`;
-    }
-}
-
-function renderizarDetalhesTecnicos(detalhes) {
-    const detalhesDiv = document.getElementById('areaDetalhesExtras');
-    const recallHTML = `<div class="recall-info"><p><strong>Recall:</strong> ${detalhes.recallInfo}</p></div>`;
-    detalhesDiv.innerHTML = `
-        <h4>Detalhes para ${detalhes.marca} ${detalhes.modelo}</h4>
-        <p><strong>Próxima Revisão:</strong> ${detalhes.proximaRevisaoKm}</p>
-        <p><strong>Itens a Verificar:</strong></p>
-        <ul>${detalhes.pontosVerificar.map(p => `<li>${p}</li>`).join('')}</ul>
-        ${recallHTML}`;
-}
-
-const modalDetalhes = document.getElementById('modal-detalhes');
-const formDetalhes = document.getElementById('form-detalhes');
-document.getElementById('btnEditarDetalhes').addEventListener('click', () => abrirModalDetalhes());
-
-function abrirModalDetalhes() {
-    if (!detalhesTecnicosSelecionados) return;
-    document.getElementById('detalhes-id').value = detalhesTecnicosSelecionados._id;
-    document.getElementById('detalhes-revisao').value = detalhesTecnicosSelecionados.proximaRevisaoKm;
-    document.getElementById('detalhes-pontos').value = detalhesTecnicosSelecionados.pontosVerificar.join('\n');
-    document.getElementById('detalhes-recall').value = detalhesTecnicosSelecionados.recallInfo;
-    modalDetalhes.classList.add('active');
-}
-
-modalDetalhes.querySelector('.close-button').onclick = () => modalDetalhes.classList.remove('active');
-
-formDetalhes.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const id = document.getElementById('detalhes-id').value;
-    const dados = {
-        proximaRevisaoKm: document.getElementById('detalhes-revisao').value,
-        pontosVerificar: document.getElementById('detalhes-pontos').value.split('\n').filter(p => p.trim() !== ''),
-        recallInfo: document.getElementById('detalhes-recall').value,
-    };
-    try {
-        const response = await fetch(`${backendUrl}/api/detalhes-tecnicos/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
-        const atualizado = await response.json();
-        if (!response.ok) throw new Error(atualizado.message);
-        detalhesTecnicosSelecionados = atualizado;
-        renderizarDetalhesTecnicos(atualizado);
-        modalDetalhes.classList.remove('active');
-        showNotification('Detalhes técnicos atualizados!', 'success');
-    } catch(error) {
-        showNotification(`Erro ao salvar: ${error.message}`, 'error');
-    }
-});
-
-function verificarTipoVeiculo() {
-    const tipo = document.getElementById('tipoInput').value;
-    document.getElementById('campoCapacidade').classList.toggle('hidden', tipo !== 'caminhao');
-    document.getElementById('capacidadeInput').required = tipo === 'caminhao';
-}
-
-const modalEdicao = document.getElementById('modal-edicao');
-const formEdicao = document.getElementById('form-edicao');
-const closeButton = modalEdicao.querySelector('.close-button');
-const fecharModal = () => modalEdicao.classList.remove('active');
-
-if (closeButton) closeButton.onclick = fecharModal;
-window.onclick = (event) => { if (event.target == modalEdicao || event.target == modalDetalhes) { fecharModal(); modalDetalhes.classList.remove('active'); } }
+// ... e assim por diante para todas as suas funções fetch ...
 
 document.getElementById('listaVeiculos').addEventListener('click', async (event) => {
     const target = event.target;
@@ -431,7 +546,10 @@ document.getElementById('listaVeiculos').addEventListener('click', async (event)
         const id = deleteButton.dataset.id;
         if (confirm('Tem certeza?')) {
             try {
-                const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { method: 'DELETE' });
+                const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { 
+                    method: 'DELETE',
+                    headers: getAuthHeaders() // <-- MODIFICADO
+                });
                 if (response.ok) {
                     showNotification('Veículo excluído!', 'success');
                     if (veiculoSelecionado && veiculoSelecionado._id === id) {
@@ -446,7 +564,7 @@ document.getElementById('listaVeiculos').addEventListener('click', async (event)
     } else if (editButton) {
         const id = editButton.dataset.id;
         try {
-            const response = await fetch(`${backendUrl}/api/veiculos/${id}`);
+            const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { headers: getAuthHeaders() }); // <-- MODIFICADO
             if (!response.ok) throw new Error('Não foi possível carregar dados.');
             const veiculo = await response.json();
             document.getElementById('edit-id').value = veiculo._id;
@@ -462,6 +580,7 @@ document.getElementById('listaVeiculos').addEventListener('click', async (event)
     }
 });
 
+const formEdicao = document.getElementById('form-edicao');
 if (formEdicao) formEdicao.addEventListener('submit', async (event) => {
     event.preventDefault();
     const id = document.getElementById('edit-id').value;
@@ -473,7 +592,11 @@ if (formEdicao) formEdicao.addEventListener('submit', async (event) => {
         cor: document.getElementById('edit-cor').value,
     };
     try {
-        const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+        const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { 
+            method: 'PUT', 
+            headers: getAuthHeaders(), // <-- MODIFICADO
+            body: JSON.stringify(dados) 
+        });
         if(response.ok) {
             showNotification('Veículo atualizado!', 'success');
             fecharModal();
@@ -481,11 +604,126 @@ if (formEdicao) formEdicao.addEventListener('submit', async (event) => {
         } else { throw new Error((await response.json()).message) }
     } catch(error) { showNotification(`Erro: ${error.message}`, 'error'); }
 });
-
+// (O resto do seu código que não faz fetch não precisa mudar)
+const modalEdicao = document.getElementById('modal-edicao');
+const modalDetalhes = document.getElementById('modal-detalhes');
+const closeButton = modalEdicao.querySelector('.close-button');
+const fecharModal = () => modalEdicao.classList.remove('active');
+if (closeButton) closeButton.onclick = fecharModal;
+window.onclick = (event) => { if (event.target == modalEdicao || event.target == modalDetalhes) { fecharModal(); modalDetalhes.classList.remove('active'); } }
 function playSound(id) {
     const sound = document.getElementById(`som${id.charAt(0).toUpperCase() + id.slice(1)}`);
     if(sound) { sound.currentTime = 0; sound.play().catch(() => {}); }
 }
+function verificarTipoVeiculo() {
+    const tipo = document.getElementById('tipoInput').value;
+    document.getElementById('campoCapacidade').classList.toggle('hidden', tipo !== 'caminhao');
+    document.getElementById('capacidadeInput').required = tipo === 'caminhao';
+}
+async function mostrarDetalhesExtras() {
+    if (!veiculoSelecionado) return;
+    const detalhesDiv = document.getElementById('areaDetalhesExtras');
+    detalhesDiv.innerHTML = '<p>Buscando detalhes do modelo...</p>';
+    detalhesDiv.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`${backendUrl}/api/detalhes-tecnicos/find`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ marca: veiculoSelecionado.marca, modelo: veiculoSelecionado.modelo })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        detalhesTecnicosSelecionados = data;
+        renderizarDetalhesTecnicos(data);
+        document.getElementById('btnEditarDetalhes').classList.remove('hidden');
+    } catch (e) {
+        detalhesDiv.innerHTML = `<p style="color:red">Erro ao buscar detalhes.</p>`;
+    }
+}
+function renderizarDetalhesTecnicos(detalhes) {
+    const detalhesDiv = document.getElementById('areaDetalhesExtras');
+    const recallHTML = `<div class="recall-info"><p><strong>Recall:</strong> ${detalhes.recallInfo}</p></div>`;
+    detalhesDiv.innerHTML = `
+        <h4>Detalhes para ${detalhes.marca} ${detalhes.modelo}</h4>
+        <p><strong>Próxima Revisão:</strong> ${detalhes.proximaRevisaoKm}</p>
+        <p><strong>Itens a Verificar:</strong></p>
+        <ul>${detalhes.pontosVerificar.map(p => `<li>${p}</li>`).join('')}</ul>
+        ${recallHTML}`;
+}
+const formDetalhes = document.getElementById('form-detalhes');
+document.getElementById('btnEditarDetalhes').addEventListener('click', () => abrirModalDetalhes());
+
+function abrirModalDetalhes() {
+    if (!detalhesTecnicosSelecionados) return;
+    document.getElementById('detalhes-id').value = detalhesTecnicosSelecionados._id;
+    document.getElementById('detalhes-revisao').value = detalhesTecnicosSelecionados.proximaRevisaoKm;
+    document.getElementById('detalhes-pontos').value = detalhesTecnicosSelecionados.pontosVerificar.join('\n');
+    document.getElementById('detalhes-recall').value = detalhesTecnicosSelecionados.recallInfo;
+    modalDetalhes.classList.add('active');
+}
+
+modalDetalhes.querySelector('.close-button').onclick = () => modalDetalhes.classList.remove('active');
+formDetalhes.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const id = document.getElementById('detalhes-id').value;
+    const dados = {
+        proximaRevisaoKm: document.getElementById('detalhes-revisao').value,
+        pontosVerificar: document.getElementById('detalhes-pontos').value.split('\n').filter(p => p.trim() !== ''),
+        recallInfo: document.getElementById('detalhes-recall').value,
+    };
+    try {
+        const response = await fetch(`${backendUrl}/api/detalhes-tecnicos/${id}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(dados)
+        });
+        const atualizado = await response.json();
+        if (!response.ok) throw new Error(atualizado.message);
+        detalhesTecnicosSelecionados = atualizado;
+        renderizarDetalhesTecnicos(atualizado);
+        modalDetalhes.classList.remove('active');
+        showNotification('Detalhes técnicos atualizados!', 'success');
+    } catch(error) {
+        showNotification(`Erro ao salvar: ${error.message}`, 'error');
+    }
+});
 
 
-document.addEventListener('DOMContentLoaded', carregarVeiculos);
+// --- EVENT LISTENERS E INICIALIZAÇÃO ---
+
+// Adiciona os listeners para os formulários e botões de autenticação
+loginForm.addEventListener('submit', handleLogin);
+registerForm.addEventListener('submit', handleRegister);
+logoutBtn.addEventListener('click', handleLogout);
+
+// Adiciona os listeners para alternar entre as telas de login e registro
+switchToRegister.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginForm.classList.add('hidden');
+    registerForm.classList.remove('hidden');
+    authTitle.textContent = 'Registro';
+});
+
+switchToLogin.addEventListener('click', (e) => {
+    e.preventDefault();
+    registerForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    authTitle.textContent = 'Login';
+});
+
+showLoginBtn.addEventListener('click', () => { authSection.classList.remove('hidden'); });
+showRegisterBtn.addEventListener('click', () => { 
+    authSection.classList.remove('hidden');
+    switchToRegister.click();
+});
+
+
+// Adiciona listener para o form de adicionar veículo
+document.getElementById('formAdicionarVeiculo').addEventListener('submit', adicionarVeiculo);
+
+
+// Inicializa a aplicação quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', () => {
+    updateAuthUI();
+});
