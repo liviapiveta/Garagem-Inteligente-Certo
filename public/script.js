@@ -1,5 +1,5 @@
 // URL base do seu backend
-const backendUrl = 'https://garagem-inteligente-certo.vercel.app/'; // Mantenha a URL do seu backend aqui
+const backendUrl = 'https://garagem-inteligente-certo.vercel.app'; // Mantenha a URL do seu backend aqui
 
 // --- Variáveis de Estado da Aplicação ---
 let veiculoSelecionado = null;
@@ -726,5 +726,4 @@ document.getElementById('formAdicionarVeiculo').addEventListener('submit', adici
 // Inicializa a aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
-
 });
