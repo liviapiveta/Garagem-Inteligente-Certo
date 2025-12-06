@@ -19,6 +19,7 @@ const veiculoSchema = new mongoose.Schema({
     turboAtivado: { type: Boolean, default: false },
     capacidadeCarga: { type: Number, default: 0, min: 0 },
     cargaAtual: { type: Number, default: 0, min: 0 },
+    isPublic: { type: Boolean, default: false },
     manutencoes: [manutencaoSchema]
 });
 
