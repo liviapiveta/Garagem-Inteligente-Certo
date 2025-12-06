@@ -8,7 +8,29 @@ const manutencaoSchema = new mongoose.Schema({
 });
 
 const veiculoSchema = new mongoose.Schema({
-    placa: { type: String, required: true, unique: true, trim: true, uppercase: true, minlength: 7, maxlength: 7 },
+    // Adiciona o userId para vincular o veículo ao usuário
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: true 
+    },
+    // Array de usuários que têm acesso compartilhado
+    sharedWith: [{
+        userId: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            ref: 'User'
+        },
+        email: String,
+        sharedAt: { type: Date, default: Date.now }
+    }],
+    placa: { 
+        type: String, 
+        required: true, 
+        trim: true, 
+        uppercase: true, 
+        minlength: 7, 
+        maxlength: 7 
+    },
     marca: { type: String, required: true, trim: true, maxlength: 50 },
     modelo: { type: String, required: true, trim: true, maxlength: 50 },
     ano: { type: Number, required: true, min: 1900, max: 2030 },
@@ -22,6 +44,9 @@ const veiculoSchema = new mongoose.Schema({
     isPublic: { type: Boolean, default: false },
     manutencoes: [manutencaoSchema]
 });
+
+// Índice composto: placa única apenas para o mesmo usuário
+veiculoSchema.index({ placa: 1, userId: 1 }, { unique: true });
 
 const Veiculo = mongoose.model('Veiculo', veiculoSchema);
 

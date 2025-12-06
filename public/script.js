@@ -1,11 +1,10 @@
 // URL base do seu backend
-const backendUrl = 'https://garagem-inteligente-certo.vercel.app'; // Mantenha a URL do seu backend aqui
+const backendUrl = 'https://garagem-inteligente-certo.vercel.app';
 
 // --- Variáveis de Estado da Aplicação ---
 let veiculoSelecionado = null;
 let previsaoCompleta = [];
 let detalhesTecnicosSelecionados = null;
-
 
 // --- ELEMENTOS DE AUTENTICAÇÃO E UI PRINCIPAL ---
 const authSection = document.getElementById('auth-section');
@@ -25,29 +24,16 @@ const showRegisterBtn = document.getElementById('showRegisterBtn');
 const listaVeiculos = document.getElementById('listaVeiculos');
 const areaVeiculoSelecionado = document.getElementById('areaVeiculoSelecionado');
 
-
 // --- FUNÇÕES AUXILIARES DE AUTENTICAÇÃO ---
 
-/**
- * Pega o token JWT do localStorage.
- * @returns {string|null} O token ou null se não existir.
- */
 function getToken() {
     return localStorage.getItem('token');
 }
 
-/**
- * Verifica se o usuário está autenticado.
- * @returns {boolean} True se houver um token, false caso contrário.
- */
 function isAuthenticated() {
     return !!getToken();
 }
 
-/**
- * Cria o objeto de cabeçalhos para requisições autenticadas.
- * @returns {HeadersInit} Objeto de cabeçalhos com Content-Type e Authorization (se houver token).
- */
 function getAuthHeaders() {
     const token = getToken();
     const headers = {
@@ -59,30 +45,23 @@ function getAuthHeaders() {
     return headers;
 }
 
-
 // --- LÓGICA DE GERENCIAMENTO DE UI (AUTENTICAÇÃO) ---
 
-/**
- * Atualiza a interface do usuário com base no estado de autenticação.
- */
 function updateAuthUI() {
     if (isAuthenticated()) {
-        // Usuário LOGADO
         authSection.classList.add('hidden');
         appSections.classList.remove('hidden');
         logoutBtn.classList.remove('hidden');
         showLoginBtn.classList.add('hidden');
         showRegisterBtn.classList.add('hidden');
-        carregarVeiculos(); // Carrega os veículos do usuário logado
+        carregarVeiculos();
     } else {
-        // Usuário NÃO LOGADO
         authSection.classList.remove('hidden');
         appSections.classList.add('hidden');
         logoutBtn.classList.add('hidden');
         showLoginBtn.classList.remove('hidden');
         showRegisterBtn.classList.remove('hidden');
         
-        // Redefine a UI para o estado de login inicial
         authTitle.textContent = 'Login';
         loginForm.classList.remove('hidden');
         registerForm.classList.add('hidden');
@@ -91,13 +70,8 @@ function updateAuthUI() {
     }
 }
 
-
 // --- FUNÇÕES DE INTERAÇÃO COM API DE AUTENTICAÇÃO ---
 
-/**
- * Lida com o evento de submissão do formulário de registro.
- * @param {Event} event - O evento de submissão do formulário.
- */
 async function handleRegister(event) {
     event.preventDefault();
     const email = registerEmail.value;
@@ -117,16 +91,12 @@ async function handleRegister(event) {
 
         showNotification('Usuário registrado com sucesso! Faça o login.', 'success');
         registerForm.reset();
-        switchToLogin.click(); // Simula o clique para voltar para a tela de login
+        switchToLogin.click();
     } catch (error) {
         showNotification(error.message, 'error');
     }
 }
 
-/**
- * Lida com o evento de submissão do formulário de login.
- * @param {Event} event - O evento de submissão do formulário.
- */
 async function handleLogin(event) {
     event.preventDefault();
     const email = loginEmail.value;
@@ -153,18 +123,191 @@ async function handleLogin(event) {
     }
 }
 
-/**
- * Lida com o evento de clique no botão de logout.
- */
 function handleLogout() {
     localStorage.removeItem('token');
     showNotification('Você saiu da sua conta.', 'info');
-    veiculoSelecionado = null; // Limpa o veículo selecionado
+    veiculoSelecionado = null;
     updateAuthUI();
 }
 
+// --- FUNÇÃO PARA TORNAR VEÍCULO PÚBLICO/PRIVADO ---
 
-// --- FUNÇÕES EXISTENTES DA APLICAÇÃO (MODIFICADAS PARA AUTENTICAÇÃO) ---
+async function togglePublicStatus() {
+    if (!veiculoSelecionado) return showNotification("Nenhum veículo selecionado!", "error");
+
+    const newStatus = !veiculoSelecionado.isPublic;
+    const confirmMsg = newStatus 
+        ? "Deseja tornar este veículo PÚBLICO? Ele será visível para todos."
+        : "Deseja tornar este veículo PRIVADO? Apenas você poderá vê-lo.";
+
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/visibility`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ isPublic: newStatus })
+        });
+
+        if (response.status === 401) {
+            showNotification('Sessão expirada. Faça login novamente.', 'error');
+            handleLogout();
+            return;
+        }
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Erro ao alterar visibilidade.');
+        }
+
+        veiculoSelecionado = await response.json();
+        updatePublicButton();
+        showNotification(
+            newStatus ? 'Veículo agora é PÚBLICO! 🌍' : 'Veículo agora é PRIVADO! 🔒',
+            'success'
+        );
+    } catch (error) {
+        showNotification(`Erro: ${error.message}`, 'error');
+    }
+}
+
+function updatePublicButton() {
+    const btn = document.getElementById('btnTogglePublic');
+    if (!btn || !veiculoSelecionado) return;
+    
+    // Verifica se o usuário é o dono
+    const isOwner = veiculoSelecionado.userId === getUserIdFromToken();
+    
+    if (!isOwner) {
+        btn.style.display = 'none';
+        return;
+    }
+    
+    btn.style.display = 'block';
+    
+    if (veiculoSelecionado.isPublic) {
+        btn.textContent = '🔒 Tornar Privado';
+        btn.style.backgroundColor = '#6c757d';
+    } else {
+        btn.textContent = '🌍 Tornar Público';
+        btn.style.backgroundColor = '#198754';
+    }
+}
+
+function getUserIdFromToken() {
+    const token = getToken();
+    if (!token) return null;
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.userId;
+    } catch (e) {
+        return null;
+    }
+}
+
+// --- FUNÇÕES DE COMPARTILHAMENTO ---
+
+async function compartilharVeiculo() {
+    if (!veiculoSelecionado) return showNotification("Nenhum veículo selecionado!", "error");
+    
+    const email = document.getElementById('shareEmailInput').value.trim();
+    if (!email) return showNotification("Digite um e-mail válido!", "error");
+    
+    // Verifica se é o dono
+    const isOwner = veiculoSelecionado.userId === getUserIdFromToken();
+    if (!isOwner) {
+        return showNotification("Apenas o dono pode compartilhar o veículo!", "error");
+    }
+    
+    try {
+        const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/share`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ email })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message);
+        }
+        
+        veiculoSelecionado = data.veiculo;
+        document.getElementById('shareEmailInput').value = '';
+        renderizarUsuariosCompartilhados();
+        showNotification(data.message, 'success');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+async function removerCompartilhamento(shareUserId) {
+    if (!veiculoSelecionado) return;
+    
+    if (!confirm('Deseja remover o compartilhamento com este usuário?')) return;
+    
+    try {
+        const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/share/${shareUserId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message);
+        }
+        
+        veiculoSelecionado = data.veiculo;
+        renderizarUsuariosCompartilhados();
+        showNotification(data.message, 'success');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+function renderizarUsuariosCompartilhados() {
+    const container = document.getElementById('sharedUsersList');
+    const shareContainer = document.querySelector('.share-container');
+    
+    if (!veiculoSelecionado || !container || !shareContainer) return;
+    
+    // Verifica se é o dono
+    const isOwner = veiculoSelecionado.userId === getUserIdFromToken();
+    
+    // Esconde toda a seção se não for o dono
+    if (!isOwner) {
+        shareContainer.style.display = 'none';
+        return;
+    }
+    
+    shareContainer.style.display = 'block';
+    
+    if (!veiculoSelecionado.sharedWith || veiculoSelecionado.sharedWith.length === 0) {
+        container.innerHTML = '<p class="no-shares">Nenhum compartilhamento ativo</p>';
+        return;
+    }
+    
+    container.innerHTML = '<h4>Compartilhado com:</h4>';
+    const ul = document.createElement('ul');
+    ul.className = 'shared-users-list';
+    
+    veiculoSelecionado.sharedWith.forEach(share => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div class="shared-user-info">
+                <span class="shared-email">👤 ${share.email}</span>
+                <span class="shared-date">Desde: ${new Date(share.sharedAt).toLocaleDateString('pt-BR')}</span>
+            </div>
+            <button class="btn-pequeno btn-excluir" onclick="removerCompartilhamento('${share.userId}')">Remover</button>
+        `;
+        ul.appendChild(li);
+    });
+    
+    container.appendChild(ul);
+}
+
+// --- FUNÇÕES EXISTENTES DA APLICAÇÃO ---
 
 function showNotification(message, type = 'info') {
     const container = document.getElementById('notification-container');
@@ -182,7 +325,7 @@ function showNotification(message, type = 'info') {
 async function adicionarVeiculo(event) {
     event.preventDefault();
     const veiculo = {
-        placa: document.getElementById('placaInput').value.trim(),
+        placa: document.getElementById('placaInput').value.trim().toUpperCase(),
         marca: document.getElementById('marcaInput').value.trim(),
         modelo: document.getElementById('modeloInput').value.trim(),
         ano: parseInt(document.getElementById('anoInput').value),
@@ -198,7 +341,7 @@ async function adicionarVeiculo(event) {
     try {
         const response = await fetch(`${backendUrl}/api/veiculos`, {
             method: 'POST',
-            headers: getAuthHeaders(), // <-- MODIFICADO
+            headers: getAuthHeaders(),
             body: JSON.stringify(veiculo),
         });
 
@@ -208,27 +351,36 @@ async function adicionarVeiculo(event) {
             return;
         }
 
+        const data = await response.json();
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Não foi possível adicionar o veículo.');
+            let errorMessage = data.message || 'Não foi possível adicionar o veículo.';
+            
+            // Mensagem amigável para erro de placa duplicada
+            if (errorMessage.includes('E11000') || errorMessage.includes('duplicate key') || errorMessage.includes('já tem')) {
+                errorMessage = `Você já tem um veículo com a placa ${veiculo.placa} cadastrado na sua garagem!`;
+            }
+            
+            throw new Error(errorMessage);
         }
 
+        // Só mostra sucesso se realmente foi criado
         showNotification('Veículo adicionado com sucesso!', 'success');
         document.getElementById('formAdicionarVeiculo').reset();
         document.querySelector('details.card-collapsible').removeAttribute('open');
         verificarTipoVeiculo();
         carregarVeiculos();
     } catch (error) {
-        showNotification(`Erro: ${error.message}`, 'error');
+        showNotification(error.message, 'error');
     }
 }
 
 async function carregarVeiculos() {
-    if (!isAuthenticated()) return; // Não carrega se não estiver logado
+    if (!isAuthenticated()) return;
 
     try {
         const response = await fetch(`${backendUrl}/api/veiculos`, {
-            headers: getAuthHeaders() // <-- MODIFICADO
+            headers: getAuthHeaders()
         });
 
         if (response.status === 401) {
@@ -249,14 +401,21 @@ async function carregarVeiculos() {
             const item = document.createElement('li');
             item.dataset.veiculoId = veiculo._id;
             const capitalize = s => s && s.charAt(0).toUpperCase() + s.slice(1);
+            const publicBadge = veiculo.isPublic ? '<span style="color: #198754; font-weight: bold;">🌍 Público</span>' : '<span style="color: #6c757d;">🔒 Privado</span>';
+            
+            // Verifica se é compartilhado (não é o dono)
+            const currentUserId = getUserIdFromToken();
+            const isShared = veiculo.userId !== currentUserId;
+            const sharedBadge = isShared ? '<span style="color: #0d6efd; font-weight: bold;">🤝 Compartilhado</span>' : '';
+            
             item.innerHTML = `
                 <div class="info-veiculo-lista">
                     <strong>${veiculo.marca} ${veiculo.modelo}</strong> (${veiculo.ano})
-                    <small>Placa: ${veiculo.placa} | Tipo: ${capitalize(veiculo.tipo)}</small>
+                    <small>Placa: ${veiculo.placa} | Tipo: ${capitalize(veiculo.tipo)} | ${publicBadge} ${sharedBadge}</small>
                 </div>
                 <div class="botoes-acao-lista">
-                    <button class="btn-editar" data-id="${veiculo._id}">Editar</button>
-                    <button class="btn-excluir" data-id="${veiculo._id}">Excluir</button>
+                    ${!isShared ? `<button class="btn-editar" data-id="${veiculo._id}">Editar</button>` : ''}
+                    ${!isShared ? `<button class="btn-excluir" data-id="${veiculo._id}">Excluir</button>` : ''}
                 </div>`;
             listaVeiculos.appendChild(item);
         });
@@ -270,7 +429,7 @@ async function selecionarVeiculo(id) {
     try {
         if (!id) return;
         const response = await fetch(`${backendUrl}/api/veiculos/${id}`, {
-            headers: getAuthHeaders() // <-- MODIFICADO
+            headers: getAuthHeaders()
         });
         if (!response.ok) throw new Error('Não foi possível carregar os dados do veículo.');
         veiculoSelecionado = await response.json();
@@ -282,6 +441,8 @@ async function selecionarVeiculo(id) {
         document.getElementById('conteudo-veiculo').classList.remove('hidden');
         exibirInformacoesVeiculoSelecionado();
         renderizarHistoricoManutencao();
+        updatePublicButton();
+        renderizarUsuariosCompartilhados();
         document.getElementById('areaDetalhesExtras').classList.add('hidden');
         document.getElementById('btnEditarDetalhes').classList.add('hidden');
     } catch (error) {
@@ -300,7 +461,7 @@ async function interagir(acao) {
         try {
             const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/carga`, { 
                 method: 'POST', 
-                headers: getAuthHeaders(), // <-- MODIFICADO
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ acao, quantidade }) 
             });
             const resultado = await response.json();
@@ -334,7 +495,7 @@ async function interagir(acao) {
         try {
             const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/estado`, { 
                 method: 'PUT', 
-                headers: getAuthHeaders(), // <-- MODIFICADO
+                headers: getAuthHeaders(),
                 body: JSON.stringify(estadoOtimista) 
             });
             if (!response.ok) throw new Error((await response.json()).message);
@@ -346,7 +507,6 @@ async function interagir(acao) {
     }
 }
 
-// ... (O restante das funções como `exibirInformacoesVeiculoSelecionado`, `atualizarStatusVisual`, etc., não precisam de modificações diretas para autenticação)
 function exibirInformacoesVeiculoSelecionado() {
     if (!veiculoSelecionado) return;
     const { informacoesVeiculoDiv, imagemVeiculo, btnTurboOn, btnTurboOff, btnCarregar, btnDescarregar } = {
@@ -402,18 +562,14 @@ function exibirInformacoesVeiculoSelecionadoComEstado(estado) {
     atualizarStatusVisual(estado);
 }
 
-// ... Continuação do resto do seu código ...
-
-// As funções de Clima, Manutenção e Detalhes Extras precisam usar getAuthHeaders() se os endpoints estiverem protegidos.
-// Vou assumir que estão para garantir a segurança.
-
+// Clima
 document.getElementById('buscar-clima-btn').addEventListener('click', async () => {
     const cidade = document.getElementById('cidade-input').value.trim();
     if (!cidade) return showNotification('Por favor, digite uma cidade.', 'error');
     const resultadoDiv = document.getElementById('previsao-resultado');
     resultadoDiv.innerHTML = '<p>Buscando previsão...</p>';
     try {
-        const response = await fetch(`${backendUrl}/api/previsao/${cidade}`, { headers: getAuthHeaders() }); // <-- MODIFICADO
+        const response = await fetch(`${backendUrl}/api/previsao/${cidade}`, { headers: getAuthHeaders() });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         previsaoCompleta = processarDadosPrevisao(data);
@@ -424,7 +580,6 @@ document.getElementById('buscar-clima-btn').addEventListener('click', async () =
     }
 });
 
-// ... as funções de renderização de clima não mudam ...
 document.querySelectorAll('.filtro-dia').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.filtro-dia').forEach(b => b.classList.remove('active'));
@@ -432,6 +587,7 @@ document.querySelectorAll('.filtro-dia').forEach(btn => {
         renderizarPrevisao(previsaoCompleta.slice(0, parseInt(btn.dataset.dias)));
     });
 });
+
 function processarDadosPrevisao(data) {
     const porDia = {};
     data.list.forEach(item => {
@@ -448,6 +604,7 @@ function processarDadosPrevisao(data) {
         descricao: porDia[dia].descs[Math.floor(porDia[dia].descs.length / 2)],
     }));
 }
+
 function renderizarPrevisao(previsao) {
     const resultadoDiv = document.getElementById('previsao-resultado');
     resultadoDiv.innerHTML = '';
@@ -458,9 +615,12 @@ function renderizarPrevisao(previsao) {
         resultadoDiv.appendChild(card);
     });
 }
+
+// Manutenções
 const modalManutencao = document.getElementById('modal-manutencao');
 const formManutencao = document.getElementById('form-manutencao');
 document.getElementById('btnAdicionarManutencao').addEventListener('click', () => abrirModalManutencao('add'));
+
 function renderizarHistoricoManutencao() {
     const container = document.getElementById('historicoManutencao');
     container.innerHTML = '';
@@ -476,6 +636,7 @@ function renderizarHistoricoManutencao() {
     });
     container.appendChild(ul);
 }
+
 function abrirModalManutencao(modo, id = null) {
     formManutencao.reset();
     document.getElementById('modal-manutencao-titulo').textContent = modo === 'add' ? 'Adicionar Manutenção' : 'Editar Manutenção';
@@ -491,6 +652,7 @@ function abrirModalManutencao(modo, id = null) {
     }
     modalManutencao.classList.add('active');
 }
+
 modalManutencao.querySelector('.close-button').onclick = () => modalManutencao.classList.remove('active');
 
 formManutencao.addEventListener('submit', async (event) => {
@@ -505,7 +667,7 @@ formManutencao.addEventListener('submit', async (event) => {
     const url = id ? `${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes/${id}` : `${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes`;
     const method = id ? 'PUT' : 'POST';
     try {
-        const response = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(registro) }); // <-- MODIFICADO
+        const response = await fetch(url, { method, headers: getAuthHeaders(), body: JSON.stringify(registro) });
         const veiculoAtualizado = await response.json();
         if (!response.ok) throw new Error(veiculoAtualizado.message);
         veiculoSelecionado = veiculoAtualizado;
@@ -522,7 +684,7 @@ async function deletarManutencao(manutencaoId) {
     try {
         const response = await fetch(`${backendUrl}/api/veiculos/${veiculoSelecionado._id}/manutencoes/${manutencaoId}`, { 
             method: 'DELETE',
-            headers: getAuthHeaders() // <-- MODIFICADO
+            headers: getAuthHeaders()
         });
         const veiculoAtualizado = await response.json();
         if (!response.ok) throw new Error(veiculoAtualizado.message);
@@ -534,8 +696,7 @@ async function deletarManutencao(manutencaoId) {
     }
 }
 
-// ... e assim por diante para todas as suas funções fetch ...
-
+// Lista de veículos - editar/excluir/selecionar
 document.getElementById('listaVeiculos').addEventListener('click', async (event) => {
     const target = event.target;
     const editButton = target.closest('.btn-editar');
@@ -548,7 +709,7 @@ document.getElementById('listaVeiculos').addEventListener('click', async (event)
             try {
                 const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { 
                     method: 'DELETE',
-                    headers: getAuthHeaders() // <-- MODIFICADO
+                    headers: getAuthHeaders()
                 });
                 if (response.ok) {
                     showNotification('Veículo excluído!', 'success');
@@ -564,7 +725,7 @@ document.getElementById('listaVeiculos').addEventListener('click', async (event)
     } else if (editButton) {
         const id = editButton.dataset.id;
         try {
-            const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { headers: getAuthHeaders() }); // <-- MODIFICADO
+            const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { headers: getAuthHeaders() });
             if (!response.ok) throw new Error('Não foi possível carregar dados.');
             const veiculo = await response.json();
             document.getElementById('edit-id').value = veiculo._id;
@@ -594,32 +755,43 @@ if (formEdicao) formEdicao.addEventListener('submit', async (event) => {
     try {
         const response = await fetch(`${backendUrl}/api/veiculos/${id}`, { 
             method: 'PUT', 
-            headers: getAuthHeaders(), // <-- MODIFICADO
+            headers: getAuthHeaders(),
             body: JSON.stringify(dados) 
         });
         if(response.ok) {
             showNotification('Veículo atualizado!', 'success');
             fecharModal();
             carregarVeiculos();
+            if (veiculoSelecionado && veiculoSelecionado._id === id) {
+                await selecionarVeiculo(id);
+            }
         } else { throw new Error((await response.json()).message) }
     } catch(error) { showNotification(`Erro: ${error.message}`, 'error'); }
 });
-// (O resto do seu código que não faz fetch não precisa mudar)
+
 const modalEdicao = document.getElementById('modal-edicao');
 const modalDetalhes = document.getElementById('modal-detalhes');
 const closeButton = modalEdicao.querySelector('.close-button');
 const fecharModal = () => modalEdicao.classList.remove('active');
 if (closeButton) closeButton.onclick = fecharModal;
-window.onclick = (event) => { if (event.target == modalEdicao || event.target == modalDetalhes) { fecharModal(); modalDetalhes.classList.remove('active'); } }
+window.onclick = (event) => { 
+    if (event.target == modalEdicao || event.target == modalDetalhes) { 
+        fecharModal(); 
+        modalDetalhes.classList.remove('active'); 
+    } 
+}
+
 function playSound(id) {
     const sound = document.getElementById(`som${id.charAt(0).toUpperCase() + id.slice(1)}`);
     if(sound) { sound.currentTime = 0; sound.play().catch(() => {}); }
 }
+
 function verificarTipoVeiculo() {
     const tipo = document.getElementById('tipoInput').value;
     document.getElementById('campoCapacidade').classList.toggle('hidden', tipo !== 'caminhao');
     document.getElementById('capacidadeInput').required = tipo === 'caminhao';
 }
+
 async function mostrarDetalhesExtras() {
     if (!veiculoSelecionado) return;
     const detalhesDiv = document.getElementById('areaDetalhesExtras');
@@ -641,6 +813,7 @@ async function mostrarDetalhesExtras() {
         detalhesDiv.innerHTML = `<p style="color:red">Erro ao buscar detalhes.</p>`;
     }
 }
+
 function renderizarDetalhesTecnicos(detalhes) {
     const detalhesDiv = document.getElementById('areaDetalhesExtras');
     const recallHTML = `<div class="recall-info"><p><strong>Recall:</strong> ${detalhes.recallInfo}</p></div>`;
@@ -651,6 +824,7 @@ function renderizarDetalhesTecnicos(detalhes) {
         <ul>${detalhes.pontosVerificar.map(p => `<li>${p}</li>`).join('')}</ul>
         ${recallHTML}`;
 }
+
 const formDetalhes = document.getElementById('form-detalhes');
 document.getElementById('btnEditarDetalhes').addEventListener('click', () => abrirModalDetalhes());
 
@@ -689,15 +863,12 @@ formDetalhes.addEventListener('submit', async (event) => {
     }
 });
 
-
 // --- EVENT LISTENERS E INICIALIZAÇÃO ---
 
-// Adiciona os listeners para os formulários e botões de autenticação
 loginForm.addEventListener('submit', handleLogin);
 registerForm.addEventListener('submit', handleRegister);
 logoutBtn.addEventListener('click', handleLogout);
 
-// Adiciona os listeners para alternar entre as telas de login e registro
 switchToRegister.addEventListener('click', (e) => {
     e.preventDefault();
     loginForm.classList.add('hidden');
@@ -718,12 +889,8 @@ showRegisterBtn.addEventListener('click', () => {
     switchToRegister.click();
 });
 
-
-// Adiciona listener para o form de adicionar veículo
 document.getElementById('formAdicionarVeiculo').addEventListener('submit', adicionarVeiculo);
 
-
-// Inicializa a aplicação quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
 });

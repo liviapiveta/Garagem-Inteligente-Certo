@@ -1,27 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garagem Pública</title>
+    <title>Garagem Pública 💖</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .vehicle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .vehicle-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .vehicle-image {
+            width: 100%;
+            max-width: 150px;
+            height: auto;
+            margin: 0 auto 15px;
+            display: block;
+        }
+
+        .vehicle-card h3 {
+            color: var(--pink-primary);
+            margin: 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .vehicle-card p {
+            margin: 5px 0;
+            color: var(--text-color);
+        }
+
+        nav {
+            margin-top: 20px;
+        }
+
+        nav a {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        nav a:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        #public-garage-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        #public-garage-container h2 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-message {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 50px;
+        }
+
+        .empty-message {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            color: var(--text-muted);
+            backdrop-filter: blur(10px);
+        }
+    </style>
 </head>
 <body>
     <header>
-        <h1>Garagem Pública</h1>
+        <h1>Garagem Pública 💖</h1>
+        <p>Veja os veículos compartilhados pela comunidade</p>
         <nav>
-            <a href="/">Voltar para Home</a>
+            <a href="/">🏠 Voltar para Home</a>
         </nav>
     </header>
     <main id="public-garage-container">
         <h2>Veículos Públicos Disponíveis</h2>
         <div id="vehicle-list" class="vehicle-grid">
-            <!-- Public vehicles will be loaded here by publicGarage.js -->
+            <p class="loading-message">Carregando veículos públicos...</p>
         </div>
     </main>
-    <footer>
-        <p>&copy; 2023 Garagem Inteligente</p>
-    </footer>
     <script src="publicGarage.js"></script>
 </body>
 </html>

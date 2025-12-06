@@ -24,7 +24,6 @@
     </header>
 
     <main>
-        <!-- Seção de Autenticação (Visível inicialmente, oculta após login) -->
         <section id="auth-section" class="card">
             <h2 id="auth-title">Login</h2>
 
@@ -43,8 +42,6 @@
             </form>
         </section>
 
-
-        <!-- Seções da Garagem (Ocultas inicialmente, visíveis após login) -->
         <div id="app-sections" class="hidden">
             <details class="card-collapsible">
                 <summary>Adicionar Novo Veículo</summary>
@@ -98,13 +95,10 @@
                             <button onclick="interagir('acelerar')">Acelerar</button>
                             <button onclick="interagir('frear')">Frear</button>
                             <button onclick="interagir('buzinar')">Buzinar</button>
-                            <button id="btnTurboOn" onclick="interagir('ativarTurbo')" class="hidden">Ativar
-                                Turbo</button>
-                            <button id="btnTurboOff" onclick="interagir('desativarTurbo')" class="hidden">Desativar
-                                Turbo</button>
+                            <button id="btnTurboOn" onclick="interagir('ativarTurbo')" class="hidden">Ativar Turbo</button>
+                            <button id="btnTurboOff" onclick="interagir('desativarTurbo')" class="hidden">Desativar Turbo</button>
                             <button id="btnCarregar" onclick="interagir('carregar')" class="hidden">Carregar</button>
-                            <button id="btnDescarregar" onclick="interagir('descarregar')"
-                                class="hidden">Descarregar</button>
+                            <button id="btnDescarregar" onclick="interagir('descarregar')" class="hidden">Descarregar</button>
                         </div>
                         <div class="manutencao-container">
                             <h3>Histórico de Manutenção</h3>
@@ -112,10 +106,21 @@
                             <button id="btnAdicionarManutencao" class="btn-pequeno">Adicionar Registro</button>
                         </div>
                         <div class="detalhes-tecnicos-container">
-                            <button id="btnVerDetalhesExtras" onclick="mostrarDetalhesExtras()">Ver Detalhes Técnicos
-                                (API)</button>
+                            <button id="btnVerDetalhesExtras" onclick="mostrarDetalhesExtras()">Ver Detalhes Técnicos (API)</button>
                             <button id="btnEditarDetalhes" class="btn-pequeno hidden">Editar Detalhes</button>
                             <div id="areaDetalhesExtras" class="hidden"></div>
+                        </div>
+                        <div class="visibility-container">
+                            <button id="btnTogglePublic" onclick="togglePublicStatus()">🌍 Tornar Público</button>
+                        </div>
+                        <div class="share-container">
+                            <h3>Compartilhar Veículo</h3>
+                            <p class="share-description">Compartilhe este veículo com outros usuários pelo e-mail</p>
+                            <div id="sharedUsersList"></div>
+                            <div class="share-form">
+                                <input type="email" id="shareEmailInput" placeholder="email@exemplo.com">
+                                <button id="btnShareVehicle" onclick="compartilharVeiculo()">➕ Compartilhar</button>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -147,39 +152,43 @@
                 <input type="hidden" id="detalhes-id">
                 <label>Próxima Revisão (Quilometragem)</label>
                 <input type="text" id="detalhes-revisao" placeholder="Ex: A cada 6.000 km" required>
-
                 <label>Pontos a Verificar (um por linha)</label>
                 <textarea id="detalhes-pontos" rows="4" placeholder="Nível do óleo&#10;Filtro de ar"></textarea>
-
                 <label>Informação de Recall</label>
                 <textarea id="detalhes-recall" rows="3" placeholder="Informações sobre recalls ativos"></textarea>
-
                 <button type="submit">Salvar Detalhes</button>
             </form>
         </div>
     </div>
 
-
     <div id="modal-edicao" class="modal">
-        <div class="modal-content"><span class="close-button">&times;</span>
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
             <h2>Editar Veículo</h2>
-            <form id="form-edicao"><input type="hidden" id="edit-id"><input type="text" id="edit-placa"
-                    placeholder="Placa" required><input type="text" id="edit-marca" placeholder="Marca" required><input
-                    type="text" id="edit-modelo" placeholder="Modelo" required><input type="number" id="edit-ano"
-                    placeholder="Ano" required><input type="text" id="edit-cor" placeholder="Cor"><button
-                    type="submit">Salvar Alterações</button></form>
+            <form id="form-edicao">
+                <input type="hidden" id="edit-id">
+                <input type="text" id="edit-placa" placeholder="Placa" required>
+                <input type="text" id="edit-marca" placeholder="Marca" required>
+                <input type="text" id="edit-modelo" placeholder="Modelo" required>
+                <input type="number" id="edit-ano" placeholder="Ano" required>
+                <input type="text" id="edit-cor" placeholder="Cor">
+                <button type="submit">Salvar Alterações</button>
+            </form>
         </div>
     </div>
 
     <div id="modal-manutencao" class="modal">
-        <div class="modal-content"><span class="close-button">&times;</span>
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
             <h2 id="modal-manutencao-titulo">Adicionar Registro</h2>
-            <form id="form-manutencao"><input type="hidden" id="manutencao-id"><input type="date" id="manutencao-data"
-                    required><input type="text" id="manutencao-servico"
-                    placeholder="Tipo de Serviço (Ex: Troca de óleo)" required><input type="number"
-                    id="manutencao-custo" placeholder="Custo (R$)" step="0.01"><textarea id="manutencao-descricao"
-                    placeholder="Descrição ou notas adicionais"></textarea><button type="submit">Salvar
-                    Registro</button></form>
+            <form id="form-manutencao">
+                <input type="hidden" id="manutencao-id">
+                <input type="date" id="manutencao-data" required>
+                <input type="text" id="manutencao-servico" placeholder="Tipo de Serviço (Ex: Troca de óleo)" required>
+                <input type="number" id="manutencao-custo" placeholder="Custo (R$)" step="0.01">
+                <textarea id="manutencao-descricao" placeholder="Descrição ou notas adicionais"></textarea>
+                <button type="submit">Salvar Registro</button>
+            </form>
         </div>
     </div>
 
